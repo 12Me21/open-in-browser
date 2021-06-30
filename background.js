@@ -1,28 +1,36 @@
-var last_attachment_name // this is a hack but I'm not sure how to properly link the request with the download item
+var attachment_names = {}; // this is a hack but I'm not sure how to properly link the request with the download item
 
 // when an http response header is recieved:
 chrome.webRequest.onHeadersReceived.addListener(
-	function(details) {
-		last_attachment_name = undefined;
+	function (details) {
 		// replace the headers...
-		return {responseHeaders: details.responseHeaders.filter( function(header) {
+		var changed = false;
+		var headers = details.responseHeaders.filter( function(header) {
 			// filter the old headers list to remove any content-disposition headers
-			if (header.name.toLowerCase()=="content-disposition") {
+			if (/^content-disposition$/i.test(header.name)) {
+				// todo: all these regexes are hacks ugh
+				if (/^\s*inline\s*$/i.test(header.value))
+					return true;
 				// keep track of the suggested filename in case the user wants to download
-				var value = decodeURIComponent(header.value)
-				last_attachment_name = value.match(/\sfilename="?(.*)"?/)?.[1] // todo: this regex should match the way the browser parses this. maybe there's a builtin for it?
-				console.log("got named attachment: ",  value, last_attachment_name)
-				return false
+				var value = decodeURIComponent(header.value);
+				console.log("got named attachment: ",  value, attachment_names[details.url], "url:", details.url);
+				attachment_names[details.url] = value.match(/\sfilename="?(.*)"?/)?.[1];
+				changed = true;
+				return false;
 			}
-			return true
-		})}
+			return true;
+		});
+		if (changed)
+			return {responseHeaders: headers};
 	},
 	{urls: ["<all_urls>"], types: ["main_frame","sub_frame"]},
 	["blocking", "responseHeaders"]
-)
+);
 
 chrome.downloads.onDeterminingFilename.addListener(function(item, suggest) {
-	console.log("suggesting name: ", last_attachment_name)
-	if (last_attachment_name)
-		suggest({filename: last_attachment_name})
-})
+	console.log("suggesting name: ", item, attachment_names[item.url]);
+	if (attachment_names[item.url]) {
+		suggest({filename: attachment_names[item.url]});
+		delete attachment_names[item.url];
+	}
+});
