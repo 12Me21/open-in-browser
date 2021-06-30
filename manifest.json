@@ -1,0 +1,12 @@
+{
+	"name": "open in browser",
+	"description": "sets the content-disposition header to 'inline' on all requests, so they display in the browser rather than being downloaded.",
+	"version": "0.1.1",
+	
+	"background": {
+		"scripts": ["background.js"]
+	},
+	"permissions": ["\u003Call_urls>", "webRequest", "webRequestBlocking"],
+	
+	"manifest_version": 2
+}
